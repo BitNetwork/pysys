@@ -54,6 +54,7 @@ def updateDisplay():
       sys.stdout.flush()
 
 def draw(givenList, text, position, direction):
+  # Direction: 0: left to right, 1: right to left, 2: down to up, 3: up to down
   if position[0] < 0:
     position[0] = len(givenList) + position[0]
   if position[1] < 0:
@@ -69,17 +70,36 @@ def draw(givenList, text, position, direction):
       givenList[position[0] + len(text) - 1 - index][position[1]] = text[index]
   return givenList
 
+def color(text, color, bgColor, style):
+  # See http://stackoverflow.com/questions/287871/print-in-terminal-with-colors-using-python/21786287#21786287, https://i.stack.imgur.com/6otvY.png, https://i.stack.imgur.com/lZr23.png & https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+  # Color: Black: 30, Red: 31, Green: 32, Yellow: 33, Blue: 34, Purple: 35, Cyan: 36, White: 37
+  # Background color: Black: 40, Red: 41, Green: 42, Yellow: 43, Blue: 44, Purple: 45, Cyan: 46, White: 47
+  # Style: Normal: 0, Bold: 1, Thin: 2, Italic: 3, 4: Underline, 5: Increase brightness, 6: Increase brightness, 7: Inverse color & bgcolor
+  return "\x1b[" + str(style) + ";" + str(color) + ";" + str(bgColor) + "m" + text + "\x1b[0m"
+
+def rgbColor(text, color, bgColor):
+  return "\x1b[38;2;" + str(color[0]) + ";" + str(color[1]) + ";" + str(color[2]) + ";48;2;" + str(bgColor[0]) + ";" + str(bgColor[1]) + ";" + str(bgColor[2]) + "m" + text + "\x1b[0m"
+
 def redraw(checkInput):
   global display, width, height
   flushDisplay()
   # begin draw code #
   
-  for line in range(len(display)):
+  for line in range(len(display)): # Line numbers
     draw(display, str(line), [line, 0], 0)
-    #display[line][0] = str(line)
-  size = str(height) + " x " + str(width)
+
+  size = str(height) + " x " + str(width) # Terminal size
   draw(display, size, [-1, -1 - len(size)], 0)
-  # draw(display, "asdf", [-2, -2 + len], 0)
+  
+  # display[0][9] = color("a", 31, 42, 2)
+  draw(display, "b", [0, 100], 0)
+  draw(display, "ab", [1, 70], 0)
+  seperator = []
+  for index in range(height):
+    #seperator.append(color(" ", 30, 47, 0))
+    seperator.append(rgbColor(" ", [160, 160, 160], [10, 10, 10]))
+  for index in range(5):
+    draw(display, seperator, [0, 0 + index], 3)
   
   # end draw code #
   if checkInput == True:
