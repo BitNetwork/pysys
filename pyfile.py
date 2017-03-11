@@ -132,17 +132,17 @@ def prompt(text, placeholder, charset, promptColor, inputColor, bgColor):
   
   inputText = placeholder
   position = len(placeholder) - 1
-  keypressPromptCache = []
+  keypressCache = []
   charset = list(charset)
   
   while True:
     draw(paint, inputText[:position + 1] + "<" + inputText[position + 2:] + "|", [-1, 3 + len(text)], 0)
     rgbColorTile(paint, [-1, 1], [-1, 1 + len(text)], promptColor, bgColor) # Paint the prompt text
     rgbColorTile(paint, [-1, 0], [-1, -1], inputColor, bgColor) # Paint the status bar
-    redraw(False, True)
+    redraw(False, True, True)
     key = ord(sys.stdin.read(1))
-    keypressPromptCache.append(key)
-    keypressPromptCache = keypressPromptCache[-5:]
+    keypressCache.append(key)
+    keypressCache = keypressCache[-5:]
     if key == 127: # Backspace
       if len(inputText) > 0:
         inputText = inputText[:position] + inputText[position + 1:]
@@ -153,21 +153,21 @@ def prompt(text, placeholder, charset, promptColor, inputColor, bgColor):
     elif key == 27: # Escape
       status("Press escape again to cancel.", promptColor, bgColor)
       key = ord(sys.stdin.read(1))
-      keypressPromptCache.append(key)
-      keypressPromptCache = keypressPromptCache[-5:]
+      keypressCache.append(key)
+      keypressCache = keypressCache[-5:]
       if key == 27:
         return None
       else:
         draw(paint, " " * width, [-1, 0], 0)
         draw(paint, text, [-1, 1], 0)
-    elif keypressPromptCache[-3:] == [27, 91, 68]: # Left arrow key
+    elif keypressCache[-3:] == [27, 91, 68]: # Left arrow key
       if position > 0:
         position -= 1
         draw(paint, " " * (width - len(text) - 4), [-1, 3 + len(text)], 0) # Clear the input
-    elif keypressPromptCache[-3:] == [27, 91, 67]: # Right arrow key
+    elif keypressCache[-3:] == [27, 91, 67]: # Right arrow key
       if len(inputText) > position:
         position += 1
-    elif len(keypressPromptCache) < 2 or keypressPromptCache[-2] != 27:
+    elif len(keypressCache) < 2 or keypressCache[-2] != 27:
       for char in charset:
         if char == chr(key):
           inputText = inputText[:position + 1] + chr(key) + inputText[position + 1:]
@@ -184,7 +184,7 @@ def status(text, color, bgColor):
   flushDisplay()
   updateDisplay()
 
-def redraw(checkInput, smart):
+def redraw(checkInput, smart, raw):
   global display, width, height, keypressCache, files, selected
   if checkInput == True:
     key = ord(sys.stdin.read(1))
@@ -194,7 +194,7 @@ def redraw(checkInput, smart):
     if keyHandle(key) == False:
       return
     
-  if smart == True:
+  if smart == True and raw == False:
     # begin smart draw code #
     size = str(height) + " x " + str(width) # Terminal size
     draw(paint, size, [-2, -1 - len(size)], 0)
@@ -212,7 +212,7 @@ def redraw(checkInput, smart):
       else:
         rgbColorTile(paint, [1 + row, 1 + column * columnLength], [2 + row, column * columnLength + len(filename) + 1], [0xA0, 0xA0, 0xA0], [0x10, 0x10, 0x10])
         # end smart draw code #
-  else:
+  elif raw == False:
     # begin draw code #
     
     # for line in range(len(display)): # Line numbers
@@ -250,13 +250,13 @@ def keyHandle(key): # 27 91 66 - 27 91 65
     cd += "/.."
     selected = 0
     flushPaint()
-    redraw(False, False)
+    redraw(False, False, False)
   elif keypressCache[-4:] == [27, 91, 51, 126]: # Delete key
     response = prompt("Delete file?", "y", "ynYN", [0xA0, 0xA0, 0xA0], [0x60, 0x60, 0x60], [0xff, 0x0, 0x0])
     if response == "y" or response == "Y":
       os.remove(cd + "/" + files[selected])
     flushPaint()
-    redraw(False, False)
+    redraw(False, False, False)
   elif key == 110: # N key
     filename = prompt("New file name?", "", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz?!.@#$%%^&*()-_=+[]{};:\"\'|\\,.<>` /", [0x5F, 0x5F, 0x5F], [0x9F, 0x9F, 0x9F], [0x0, 0xff, 0x0])
     if filename is not None and os.path.isfile(cd + "/" + filename):
@@ -267,7 +267,7 @@ def keyHandle(key): # 27 91 66 - 27 91 65
       file.write("")
       file.close()
     flushPaint()
-    redraw(False, False)
+    redraw(False, False, False)
   elif key == 109:
     filename = prompt("Move to?", files[selected], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz?!.@#$%%^&*()-_=+[]{};:\"\'|\\,.<>` /", [0x5F, 0x5F, 0x5F], [0x9F, 0x9F, 0x9F], [0x0, 0xff, 0x0])
     if filename is not None and os.path.isfile(cd + "/" + filename):
@@ -276,18 +276,18 @@ def keyHandle(key): # 27 91 66 - 27 91 65
     elif filename is not None:
       os.rename(cd + "/" + files[selected], cd + "/" + filename)
     flushPaint()
-    redraw(False, False)
+    redraw(False, False, False)
   elif key == 114: # R key
     flushPaint()
     flushDisplay()
-    redraw(False, False)
+    redraw(False, False, False)
   elif key == 10: # Enter key
     target = cd + "/" + files[selected]
     if os.path.isdir(target):
       cd = target
       selected = 0
       flushPaint()
-      redraw(False, False)
+      redraw(False, False, False)
     elif stat.S_IXUSR & os.stat(target)[stat.ST_MODE]:
       flushPaint()
       updateDisplay()
@@ -297,7 +297,7 @@ def keyHandle(key): # 27 91 66 - 27 91 65
       sys.stdout.flush()
       inputMode()
       sys.stdin.read(1)
-      redraw(False, False)
+      redraw(False, False, False)
 
 def signalHandler(signal, frame):
   exit(0)
@@ -311,6 +311,6 @@ signal.signal(signal.SIGINT, signalHandler)
 inputMode()
 flushPaint()
 flushDisplay()
-redraw(False, False)
+redraw(False, False, False)
 while 1:
-  redraw(True, True)
+  redraw(True, True, False)
