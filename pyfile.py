@@ -132,17 +132,17 @@ def prompt(text, placeholder, charset, promptColor, inputColor, bgColor):
   
   inputText = placeholder
   position = len(placeholder) - 1
-  keypressCache = []
+  keypressPromptCache = []
   charset = list(charset)
   
   while True:
-    draw(paint, inputText[:position + 1] + "<" + inputText[position + 2:], [-1, 3 + len(text)], 0)
+    draw(paint, inputText[:position + 1] + "<" + inputText[position + 2:] + "|", [-1, 3 + len(text)], 0)
     rgbColorTile(paint, [-1, 1], [-1, 1 + len(text)], promptColor, bgColor) # Paint the prompt text
     rgbColorTile(paint, [-1, 0], [-1, -1], inputColor, bgColor) # Paint the status bar
     redraw(False, True)
     key = ord(sys.stdin.read(1))
-    keypressCache.append(key)
-    keypressCache = keypressCache[-5:]
+    keypressPromptCache.append(key)
+    keypressPromptCache = keypressPromptCache[-5:]
     if key == 127: # Backspace
       if len(inputText) > 0:
         inputText = inputText[:position] + inputText[position + 1:]
@@ -151,21 +151,38 @@ def prompt(text, placeholder, charset, promptColor, inputColor, bgColor):
     elif key == 10: # Enter
       return inputText
     elif key == 27: # Escape
-      return None
-    elif keypressCache[-3:] == [27, 91, 68]: # Right arrow key
+      status("Press escape again to cancel.", promptColor, bgColor)
+      key = ord(sys.stdin.read(1))
+      keypressPromptCache.append(key)
+      keypressPromptCache = keypressPromptCache[-5:]
+      if key == 27:
+        return None
+      else:
+        draw(paint, " " * width, [-1, 0], 0)
+        draw(paint, text, [-1, 1], 0)
+    elif keypressPromptCache[-3:] == [27, 91, 68]: # Left arrow key
       if position > 0:
         position -= 1
         draw(paint, " " * (width - len(text) - 4), [-1, 3 + len(text)], 0) # Clear the input
-    elif keypressCache[-3:] == [27, 91, 67]: # Left arrow key
+    elif keypressPromptCache[-3:] == [27, 91, 67]: # Right arrow key
       if len(inputText) > position:
         position += 1
-    else:
+    elif len(keypressPromptCache) < 2 or keypressPromptCache[-2] != 27:
       for char in charset:
         if char == chr(key):
-          inputText += chr(key)
+          inputText = inputText[:position + 1] + chr(key) + inputText[position + 1:]
           position += 1
           break
-    # print() 
+
+def status(text, color, bgColor):
+  global width, paint
+  draw(paint, " " * width, [-1, 0], 0) # Clear the status bar
+  if len(text) >= width - 10:
+    text = text[:width - 2] + ".."
+  draw(paint, text, [-1, 1], 0)
+  rgbColorTile(paint, [-1, 0], [-1, -1], color, bgColor)
+  flushDisplay()
+  updateDisplay()
 
 def redraw(checkInput, smart):
   global display, width, height, keypressCache, files, selected
@@ -237,16 +254,32 @@ def keyHandle(key): # 27 91 66 - 27 91 65
   elif keypressCache[-4:] == [27, 91, 51, 126]: # Delete key
     response = prompt("Delete file?", "y", "ynYN", [0xA0, 0xA0, 0xA0], [0x60, 0x60, 0x60], [0xff, 0x0, 0x0])
     if response == "y" or response == "Y":
-      os.remove(files[selected])
+      os.remove(cd + "/" + files[selected])
     flushPaint()
     redraw(False, False)
   elif key == 110: # N key
-    filename = prompt("New file name?", "", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz?!.@#$%%^&*()-_=+[]{};:\"\'|\\,.<>` ", [0x5F, 0x5F, 0x5F], [0x9F, 0x9F, 0x9F], [0x0, 0xff, 0x0])
-    if filename is not None:
-      file = open(filename, "w")
+    filename = prompt("New file name?", "", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz?!.@#$%%^&*()-_=+[]{};:\"\'|\\,.<>` /", [0x5F, 0x5F, 0x5F], [0x9F, 0x9F, 0x9F], [0x0, 0xff, 0x0])
+    if filename is not None and os.path.isfile(cd + "/" + filename):
+      status("File already exists.", [0x5F, 0x5F, 0x5F], [0x0, 0xff, 0x0])
+      time.sleep(2)
+    elif filename is not None:
+      file = open(cd + "/" + filename, "w")
       file.write("")
       file.close()
     flushPaint()
+    redraw(False, False)
+  elif key == 109:
+    filename = prompt("Move to?", files[selected], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz?!.@#$%%^&*()-_=+[]{};:\"\'|\\,.<>` /", [0x5F, 0x5F, 0x5F], [0x9F, 0x9F, 0x9F], [0x0, 0xff, 0x0])
+    if filename is not None and os.path.isfile(cd + "/" + filename):
+      status("File already exists.", [0x5F, 0x5F, 0x5F], [0x0, 0xff, 0x0])
+      time.sleep(2)
+    elif filename is not None:
+      os.rename(cd + "/" + files[selected], cd + "/" + filename)
+    flushPaint()
+    redraw(False, False)
+  elif key == 114: # R key
+    flushPaint()
+    flushDisplay()
     redraw(False, False)
   elif key == 10: # Enter key
     target = cd + "/" + files[selected]
